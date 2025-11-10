@@ -1,0 +1,17 @@
+{
+  "name": "fyers-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "fyers:auth": "node scripts/fyers/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "open": "^9.1.0"
+  }
+}
+
