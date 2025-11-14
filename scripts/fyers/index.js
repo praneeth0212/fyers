@@ -147,8 +147,9 @@ app.listen(PORT, async () => {
   console.log(`[Fyers] Helper server running on port ${PORT}`);
   console.log(`[Fyers] Environment: ${process.env.RAILWAY_PUBLIC_DOMAIN ? 'Railway Production' : 'Local Development'}`);
 
-  // Only auto-open browser in local development
-  if (!process.env.RAILWAY_PUBLIC_DOMAIN && !process.env.PORT && !getAccessToken()) {
+  // Only auto-open browser in local development (not on Railway)
+  const isRailway = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_ENVIRONMENT;
+  if (!isRailway && !getAccessToken()) {
     try {
       console.log("[Fyers] Opening browser for authentication...");
       await openAuthURL();

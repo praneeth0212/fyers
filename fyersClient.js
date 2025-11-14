@@ -21,8 +21,15 @@ if (!APP_ID || !SECRET || !REDIRECT_URI) {
   );
 }
 
-const accessTokenBox = { value: null };
-const refreshTokenBox = { value: null };
+// Initialize tokens from environment variables (for Railway/production) or in-memory (for local)
+const accessTokenBox = { value: process.env.FYERS_ACCESS_TOKEN || null };
+const refreshTokenBox = { value: process.env.FYERS_REFRESH_TOKEN || null };
+
+if (accessTokenBox.value) {
+  console.log("[Fyers] Access token loaded from environment variable");
+} else {
+  console.log("[Fyers] No access token found in environment. Authentication required.");
+}
 
 const USE_VALIDATE_FLOW = /api-t1\.fyers\.in/i.test(API_BASE);
 
