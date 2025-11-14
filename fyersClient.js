@@ -91,10 +91,14 @@ const exchangeToken = async (authCode) => {
     console.log("[Fyers] appIdHash used for exchange:", appIdHash);
     console.log("[Fyers] Exchanging auth code for tokens with payload:", payload);
 
-    const targetEndpoint = USE_VALIDATE_FLOW ? FYERS_VALIDATE_URL : FYERS_TOKEN_URL;
-    console.log("[Fyers] Token exchange endpoint:", targetEndpoint);
+    // Use validate-authcode for test, token for production
+    const isTestEnv = API_BASE.includes('api-t1');
+    const endpoint = isTestEnv ? FYERS_VALIDATE_URL : FYERS_TOKEN_URL;
+    
+    console.log("[Fyers] Environment:", isTestEnv ? 'TEST' : 'PRODUCTION');
+    console.log("[Fyers] Using endpoint:", endpoint);
 
-    const resp = await axios.post(targetEndpoint, payload, {
+    const resp = await axios.post(endpoint, payload, {
       headers: { "Content-Type": "application/json" },
     });
 
@@ -102,14 +106,8 @@ const exchangeToken = async (authCode) => {
     refreshTokenBox.value = resp.data.refresh_token;
 
     console.log("[Fyers] Access token issued.");
-    console.log(
-      "[Fyers] Access token preview:",
-      accessTokenBox.value ? `${accessTokenBox.value.slice(0, 16)}...` : undefined
-    );
-    console.log(
-      "[Fyers] Refresh token preview:",
-      refreshTokenBox.value ? `${refreshTokenBox.value.slice(0, 16)}...` : undefined
-    );
+    console.log("[Fyers] Access token:", accessTokenBox.value);
+    console.log("[Fyers] Refresh token:", refreshTokenBox.value);
 
     return {
       accessToken: accessTokenBox.value,
@@ -149,14 +147,8 @@ const refreshAccessToken = async () => {
     refreshTokenBox.value = resp.data.refresh_token;
 
     console.log("[Fyers] Access token refreshed.");
-    console.log(
-      "[Fyers] Access token preview:",
-      accessTokenBox.value ? `${accessTokenBox.value.slice(0, 16)}...` : undefined
-    );
-    console.log(
-      "[Fyers] Refresh token preview:",
-      refreshTokenBox.value ? `${refreshTokenBox.value.slice(0, 16)}...` : undefined
-    );
+    console.log("[Fyers] Access token:", accessTokenBox.value);
+    console.log("[Fyers] Refresh token:", refreshTokenBox.value);
 
     return {
       accessToken: accessTokenBox.value,
