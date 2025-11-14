@@ -1,92 +1,71 @@
 const express = require("express");
+const axios = require("axios");
 const dotenv = require("dotenv");
-const {
-  openAuthURL,
-  exchangeToken,
-  getQuotes,
-  getAccessToken,
-  FYERS_APP_ID,
-  FYERS_REDIRECT_URI,
-  FYERS_API_BASE,
-  FYERS_DATA_BASE,
-} = require("./fyersClient");
-
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.FYERS_PORT || 3000);
-const DEFAULT_SYMBOLS = (process.env.FYERS_DEFAULT_SYMBOLS || "NSE:RELIANCE-EQ,NSE:TCS-EQ").split(",");
+const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
-  res.send(`
-    <h2>Fyers Auth Helper</h2>
-    <p>Use <a href="/quotes">/quotes</a> to fetch sample market data once access tokens are generated.</p>
-  `);
+// Fyers config
+const FYERS_APP_ID = process.env.FYERS_APP_ID;
+const FYERS_SECRET = process.env.FYERS_SECRET;
+const FYERS_REDIRECT_URI = process.env.FYERS_REDIRECT_URI;
+const FYERS_API_BASE = "https://api.fyers.in";
+let accessToken = null;
+
+// Route to start OAuth login
+app.get("/auth", (req, res) => {
+  const authURL = `https://api.fyers.in/api/v2/authorize?client_id=${FYERS_APP_ID}&redirect_uri=${encodeURIComponent(FYERS_REDIRECT_URI)}&response_type=code&state=123`;
+  res.redirect(authURL);
 });
 
+// Callback route to receive auth code
 app.get("/callback", async (req, res) => {
-  const { auth_code, code, state } = req.query;
-
-  const effectiveCode = auth_code || code;
-
-  if (!effectiveCode) {
-    console.warn("[Fyers] Callback missing auth_code. Query params:", req.query);
+  const { code } = req.query;
+  if (!code) {
     return res.status(400).send("Authorization code missing.");
   }
 
-  console.log("[Fyers] Callback query params:", req.query);
-  console.log(`[Fyers] Using auth code (priority auth_code param): ${auth_code ? "auth_code" : "code"}`);
-  console.log(`[Fyers] Auth code value: ${effectiveCode}`);
-  console.log(`[Fyers] State value: ${state || "n/a"}`);
-
   try {
-    await exchangeToken(effectiveCode);
+    const response = await axios.post(`${FYERS_API_BASE}/api/v2/token`, {
+      grant_type: "authorization_code",
+      client_id: FYERS_APP_ID,
+      secret_key: FYERS_SECRET,
+      code,
+      redirect_uri: FYERS_REDIRECT_URI,
+    });
+
+    accessToken = response.data.access_token;
     res.send(`
-      <h2>Access token generated!</h2>
-      <p>You can close this window and return to the terminal.</p>
+      <h2>Access Token Generated!</h2>
+      <p>You can now use the /quotes endpoint.</p>
     `);
   } catch (err) {
-    console.error("[Fyers] Callback token exchange failed.");
-    res.status(500).send("Failed to exchange authorization code. Check the terminal for details.");
+    console.error("Error exchanging code:", err.response?.data || err.message);
+    res.status(500).send("Failed to exchange authorization code.");
   }
 });
 
+// Fetch quotes
 app.get("/quotes", async (req, res) => {
+  if (!accessToken) {
+    return res.status(401).json({ error: "Access token is missing. Authorize first via /auth" });
+  }
+
+  const symbols = req.query.symbols || "NSE:RELIANCE-EQ,NSE:TCS-EQ";
+
   try {
-    const symbols = req.query.symbols ? req.query.symbols.split(",") : DEFAULT_SYMBOLS;
-    console.log("[Fyers] /quotes endpoint hit. Symbols:", symbols);
-    const data = await getQuotes(symbols);
-    console.log("[Fyers] /quotes response payload:", JSON.stringify(data).slice(0, 500));
-    res.json(data);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    const payload = err.response?.data || { message: err.message || "Failed to fetch quotes" };
-    console.error("[Fyers] /quotes error status:", status);
-    console.error("[Fyers] /quotes error payload:", payload);
-    res.status(status).json({
-      error: payload,
-      hint: "Ensure FYERS_APP_ID/FYERS_SECRET/FYERS_REDIRECT_URI are correct and tokens are generated via /callback.",
+    const response = await axios.get(`${FYERS_API_BASE}/data-rest/v3/quotes/${symbols}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
+    res.json(response.data);
+  } catch (err) {
+    console.error("Quotes error:", err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({ error: err.response?.data || err.message });
   }
 });
 
-app.listen(PORT, async () => {
-  console.log(`[Fyers] Helper server running on http://localhost:${PORT}`);
-  console.log("[Fyers] Helper configuration summary:", {
-    FYERS_APP_ID,
-    FYERS_REDIRECT_URI,
-    FYERS_API_BASE,
-    FYERS_DATA_BASE,
-  });
-
-  if (!getAccessToken()) {
-    try {
-      await openAuthURL();
-    } catch (err) {
-      console.error("[Fyers] Unable to initiate browser auth:", err.message);
-    }
-  } else {
-    console.log("[Fyers] Existing access token detected. Use /quotes to test the API.");
-  }
+app.listen(PORT, () => {
+  console.log(`[Fyers] Helper server running on port ${PORT}`);
+  console.log("[Fyers] Go to /auth to authorize the app and generate token");
 });
-
