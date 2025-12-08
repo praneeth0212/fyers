@@ -30,7 +30,9 @@ let refreshToken = process.env.FYERS_REFRESH_TOKEN || null;
 // Build appIdHash (SHA256 of APP_ID:SECRET)
 const buildAppIdHash = () => {
   if (!FYERS_APP_ID || !FYERS_SECRET) {
-    throw new Error("FYERS_APP_ID and FYERS_SECRET are required");
+    const error = new Error("FYERS_APP_ID and FYERS_SECRET are required");
+    console.error("[Fyers] Configuration error:", error.message);
+    throw error;
   }
   const input = `${FYERS_APP_ID}:${FYERS_SECRET}`;
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -51,9 +53,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// Health check endpoint
+// Health check endpoint (must return 200 for Railway)
 app.get("/health", (req, res) => {
-  res.json({
+  res.status(200).json({
     status: "healthy",
     timestamp: new Date().toISOString(),
     hasToken: !!accessToken
@@ -189,7 +191,29 @@ app.get("/quotes", async (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({
+    error: {
+      message: "Internal server error",
+      hint: "Check server logs for details"
+    }
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: {
+      message: "Route not found",
+      hint: "Available routes: /, /health, /auth, /callback, /quotes"
+    }
+  });
+});
+
+// Start server
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[Fyers] Helper server running on port ${PORT}`);
   console.log(`[Fyers] Environment: ${USE_VALIDATE_FLOW ? 'TEST' : 'PRODUCTION'}`);
   console.log(`[Fyers] API Base: ${FYERS_API_BASE}`);
@@ -208,4 +232,24 @@ app.listen(PORT, "0.0.0.0", () => {
     ? (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}/health` : 'https://fyers-production-bc19.up.railway.app/health')
     : `http://127.0.0.1:${PORT}/health`;
   console.log(`[Fyers] Health check: ${healthURL}`);
+});
+
+// Graceful shutdown for Railway
+process.on('SIGTERM', () => {
+  console.log('[Fyers] SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('[Fyers] Server closed');
+    process.exit(0);
+  });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
