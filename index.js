@@ -8,11 +8,6 @@ const app = express();
 const PORT = process.env.PORT;
 const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.RAILWAY_ENVIRONMENT;
 
-if (!PORT) {
-  console.error("[Fyers] ERROR: PORT environment variable is required");
-  process.exit(1);
-}
-
 
 // Middleware
 app.use(express.json());
