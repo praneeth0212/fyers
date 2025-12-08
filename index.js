@@ -214,7 +214,7 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[Fyers] Server running on ${PORT}`);
   console.log(`[Fyers] Environment: ${USE_VALIDATE_FLOW ? 'TEST' : 'PRODUCTION'}`);
   console.log(`[Fyers] API Base: ${FYERS_API_BASE}`);
