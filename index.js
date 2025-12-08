@@ -5,8 +5,14 @@ const crypto = require("crypto");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.RAILWAY_ENVIRONMENT;
+
+if (!PORT) {
+  console.error("[Fyers] ERROR: PORT environment variable is required");
+  process.exit(1);
+}
+
 
 // Middleware
 app.use(express.json());
@@ -19,7 +25,7 @@ const FYERS_SECRET = process.env.FYERS_SECRET;
 const RAILWAY_PUBLIC_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL;
 const FYERS_REDIRECT_URI = process.env.FYERS_REDIRECT_URI || 
   (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}/callback` : null) ||
-  (IS_PRODUCTION ? 'https://fyers-production-bc19.up.railway.app/callback' : `http://127.0.0.1:${PORT}/callback`);
+  (IS_PRODUCTION ? 'https://fyers-production-bc19.up.railway.app/callback' : `http://127.0.0.1:3000/callback`);
 
 const FYERS_API_BASE = process.env.FYERS_API_BASE || "https://api.fyers.in";
 const FYERS_DATA_BASE = process.env.FYERS_DATA_BASE || FYERS_API_BASE;
@@ -213,8 +219,8 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[Fyers] Helper server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`[Fyers] Server running on ${PORT}`);
   console.log(`[Fyers] Environment: ${USE_VALIDATE_FLOW ? 'TEST' : 'PRODUCTION'}`);
   console.log(`[Fyers] API Base: ${FYERS_API_BASE}`);
   console.log(`[Fyers] Redirect URI: ${FYERS_REDIRECT_URI}`);
@@ -222,15 +228,12 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   if (accessToken) {
     console.log("[Fyers] ✅ Access token loaded from environment variable");
   } else {
-    const baseURL = IS_PRODUCTION 
-      ? (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}` : 'https://fyers-production-bc19.up.railway.app')
-      : `http://127.0.0.1:${PORT}`;
-    console.log(`[Fyers] ⚠️  No access token found. Go to ${baseURL}/auth to authorize the app and generate token`);
+    console.log(`[Fyers] No token. Visit /auth manually to authorize the app.`);
   }
   
   const healthURL = IS_PRODUCTION 
     ? (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}/health` : 'https://fyers-production-bc19.up.railway.app/health')
-    : `http://127.0.0.1:${PORT}/health`;
+    : `http://127.0.0.1:3000/health`;
   console.log(`[Fyers] Health check: ${healthURL}`);
 });
 
